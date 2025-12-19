@@ -100,7 +100,7 @@
     @apply bg-brand-50/50;
   }
   
-  .data-table .text-right {
+  .data-table .num-cell {
     @apply text-right tabular-nums;
   }
   

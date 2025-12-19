@@ -1,0 +1,584 @@
+{% extends "base.html" %}
+
+{% block title %}Team Dashboard{% endblock %}
+
+{% block nav_dashboard %}bg-brand-50 text-brand-900{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="mb-8">
+    <h1 class="text-page-title text-brand-900 mb-2">Team Lead Dashboard</h1>
+    <p class="text-brand-500">Review daily annotation performance, challenges, and export reports.</p>
+</div>
+
+<!-- Filter Bar -->
+<div class="card mb-8">
+    <form method="GET" action="/dashboard" id="filter-form" class="flex flex-wrap items-end gap-4">
+        <!-- Date Filter -->
+        <div class="flex-shrink-0">
+            <label for="date" class="form-label">Date</label>
+            <input 
+                type="date" 
+                id="date" 
+                name="date" 
+                value="{{ selected_date }}"
+                class="form-input w-44"
+            >
+        </div>
+
+        <!-- Projects Filter -->
+        <div class="flex-1 min-w-48">
+            <label for="projects" class="form-label">Projects</label>
+            <select 
+                id="projects" 
+                name="projects" 
+                class="form-select"
+                multiple
+                data-selected='{{ selected_projects | tojson }}'
+            >
+                {% for project in all_projects %}
+                <option value="{{ project }}" {% if project in selected_projects %}selected{% endif %}>
+                    {{ project }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Annotators Filter -->
+        <div class="flex-1 min-w-48">
+            <label for="annotators" class="form-label">Annotators</label>
+            <select 
+                id="annotators" 
+                name="annotators" 
+                class="form-select"
+                multiple
+                data-selected='{{ selected_annotators | tojson }}'
+            >
+                {% for annotator in all_annotators %}
+                <option value="{{ annotator }}" {% if annotator in selected_annotators %}selected{% endif %}>
+                    {{ annotator }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Apply Button -->
+        <div class="flex-shrink-0">
+            <button type="submit" class="btn-primary">
+                Apply Filters
+            </button>
+        </div>
+    </form>
+    <p class="text-sm text-brand-400 mt-3">Filters apply to all metrics, tables, charts, and exports below.</p>
+</div>
+
+<!-- KPI Cards -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+    <div class="metric-card">
+        <div class="metric-label">Total Images</div>
+        <div class="metric-value">{{ "{:,}".format(metrics.total_images) }}</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-label">Total Hours</div>
+        <div class="metric-value">{{ "%.2f"|format(metrics.total_hours) }}</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-label">Active Annotators</div>
+        <div class="metric-value">{{ metrics.annotator_count }}</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-label">Total Entries</div>
+        <div class="metric-value">{{ metrics.total_entries }}</div>
+    </div>
+</div>
+
+<!-- Charts Section -->
+{% if annotator_summary or project_summary %}
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10">
+    <!-- Images per Annotator Chart -->
+    <div class="card">
+        <h3 class="section-title">Images per Annotator</h3>
+        <div class="h-72">
+            <canvas id="chartAnnotators"></canvas>
+        </div>
+    </div>
+
+    <!-- Images per Project Chart -->
+    <div class="card">
+        <h3 class="section-title">Images per Project</h3>
+        <div class="h-72">
+            <canvas id="chartProjects"></canvas>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Summary by Annotator -->
+<div class="mb-10">
+    <h2 class="section-title">Summary by Annotator</h2>
+    {% if annotator_summary %}
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Annotator</th>
+                    <th class="text-right">Images</th>
+                    <th class="text-right">Hours</th>
+                    <th class="text-right">Entries</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in annotator_summary %}
+                <tr>
+                    <td class="font-medium text-brand-900">{{ row.annotator_name }}</td>
+                    <td class="text-right">{{ "{:,}".format(row.total_images) }}</td>
+                    <td class="text-right">{{ "%.2f"|format(row.total_hours) }}</td>
+                    <td class="text-right">{{ row.entries_count }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="card text-center py-10">
+        <p class="text-brand-400">No entries found for the selected filters.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- All Work Log Entries -->
+<div class="mb-10">
+    <h2 class="section-title">All Work Log Entries</h2>
+    {% if logs %}
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Annotator</th>
+                    <th>Project</th>
+                    <th>Task Type</th>
+                    <th class="text-right">Images</th>
+                    <th class="text-right">Hours</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td class="text-brand-500">{{ log.created_at[11:16] }}</td>
+                    <td class="font-medium text-brand-900">{{ log.annotator_name }}</td>
+                    <td>{{ log.project_name }}</td>
+                    <td>{{ log.task_type }}</td>
+                    <td class="text-right">{{ "{:,}".format(log.images_done) }}</td>
+                    <td class="text-right">{{ "%.2f"|format(log.hours_spent) }}</td>
+                    <td>
+                        {% if log.status == 'Completed' %}
+                        <span class="badge badge-completed">{{ log.status }}</span>
+                        {% elif log.status == 'Partially completed' %}
+                        <span class="badge badge-partial">{{ log.status }}</span>
+                        {% else %}
+                        <span class="badge badge-blocked">{{ log.status }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="card text-center py-10">
+        <p class="text-brand-400">No entries found for the selected filters.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Challenges & Suggestions -->
+<div class="mb-10">
+    <h2 class="section-title">Challenges & Suggestions</h2>
+    <p class="section-subtitle">Review blockers and improvement ideas from the team</p>
+    {% if challenges_list %}
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Annotator</th>
+                    <th>Project</th>
+                    <th>Status</th>
+                    <th>Challenges</th>
+                    <th>Suggestions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in challenges_list %}
+                <tr>
+                    <td class="font-medium text-brand-900">{{ item.annotator_name }}</td>
+                    <td>{{ item.project_name }}</td>
+                    <td>
+                        {% if item.status == 'Completed' %}
+                        <span class="badge badge-completed">{{ item.status }}</span>
+                        {% elif item.status == 'Partially completed' %}
+                        <span class="badge badge-partial">{{ item.status }}</span>
+                        {% else %}
+                        <span class="badge badge-blocked">{{ item.status }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="max-w-xs">
+                        <p class="text-sm text-brand-700 whitespace-pre-wrap">{{ item.challenges or '—' }}</p>
+                    </td>
+                    <td class="max-w-xs">
+                        <p class="text-sm text-brand-700 whitespace-pre-wrap">{{ item.suggestions or '—' }}</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="card text-center py-10">
+        <p class="text-brand-400">No challenges or suggestions reported for this date.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Export Section -->
+<div class="card mb-10">
+    <h2 class="section-title">Export Reports</h2>
+    <div class="flex flex-wrap gap-4 mb-4">
+        <a href="/export/csv?date={{ selected_date }}{% if selected_projects != all_projects %}&projects={{ selected_projects | join(',') }}{% endif %}{% if selected_annotators != all_annotators %}&annotators={{ selected_annotators | join(',') }}{% endif %}" 
+           class="btn-secondary">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+            Download CSV Report
+        </a>
+        <a href="/export/excel?date={{ selected_date }}{% if selected_projects != all_projects %}&projects={{ selected_projects | join(',') }}{% endif %}{% if selected_annotators != all_annotators %}&annotators={{ selected_annotators | join(',') }}{% endif %}" 
+           class="btn-secondary">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+            Download Excel Report
+        </a>
+    </div>
+    <p class="text-sm text-brand-400 italic">
+        You can also print this page and use "Save as PDF" in your browser for a PDF report.
+    </p>
+</div>
+
+<!-- Slack Integration Section -->
+<div class="card" id="slack-section">
+    <h2 class="section-title flex items-center gap-2">
+        <span class="text-xl">📤</span>
+        Send to Slack
+    </h2>
+    <p class="section-subtitle">Generate and send the daily report to your Slack channel</p>
+    
+    <div class="space-y-5">
+        <!-- Task Allocation Input -->
+        <div>
+            <label for="task_allocation" class="form-label">📌 Task Allocation (for tomorrow)</label>
+            <textarea 
+                id="task_allocation" 
+                name="task_allocation" 
+                rows="4"
+                placeholder="Annotate 45 images on new dataset
+Complete 12 remaining on train
+Give feedback on Onboarding annotation"
+                class="form-textarea"
+            ></textarea>
+            <p class="text-xs text-brand-400 mt-1">Enter each task on a new line. Arrows (→) will be added automatically.</p>
+        </div>
+
+        <!-- Webhook URL (collapsible) -->
+        <details class="border border-brand-200 rounded-lg">
+            <summary class="px-4 py-3 cursor-pointer text-sm font-medium text-brand-700 hover:bg-brand-50">
+                ⚙️ Slack Webhook Settings (click to configure)
+            </summary>
+            <div class="px-4 pb-4">
+                <label for="webhook_url" class="form-label mt-3">Webhook URL</label>
+                <input 
+                    type="text" 
+                    id="webhook_url" 
+                    name="webhook_url" 
+                    placeholder="https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+                    class="form-input font-mono text-sm"
+                >
+                <p class="text-xs text-brand-400 mt-1">
+                    Leave empty to use the default webhook from config. 
+                    <a href="https://api.slack.com/messaging/webhooks" target="_blank" class="text-brand-600 underline">How to create a webhook →</a>
+                </p>
+            </div>
+        </details>
+
+        <!-- Action Buttons -->
+        <div class="flex flex-wrap gap-4 pt-2">
+            <button type="button" id="preview-slack-btn" class="btn-secondary">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                </svg>
+                Preview Message
+            </button>
+            <button type="button" id="send-slack-btn" class="btn-primary">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                </svg>
+                Send to Slack
+            </button>
+        </div>
+
+        <!-- Preview Area -->
+        <div id="slack-preview-container" class="hidden">
+            <label class="form-label">Message Preview</label>
+            <div id="slack-preview" class="bg-brand-50 border border-brand-200 text-brand-900 p-4 rounded-lg font-mono text-sm whitespace-pre-wrap overflow-x-auto max-h-96 overflow-y-auto"></div>
+        </div>
+
+        <!-- Status Messages -->
+        <div id="slack-status" class="hidden">
+            <div id="slack-success" class="hidden bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                </svg>
+                <span id="slack-success-text">Report sent to Slack successfully!</span>
+            </div>
+            <div id="slack-error" class="hidden bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+                <span id="slack-error-text">Failed to send to Slack</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Chart configuration
+    const chartConfig = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                grid: {
+                    color: '#e5e7eb'
+                },
+                ticks: {
+                    color: '#6b7280',
+                    font: {
+                        size: 12
+                    }
+                }
+            },
+            x: {
+                grid: {
+                    display: false
+                },
+                ticks: {
+                    color: '#6b7280',
+                    font: {
+                        size: 12
+                    }
+                }
+            }
+        }
+    };
+
+    // Annotators Chart
+    const annotatorsCtx = document.getElementById('chartAnnotators');
+    if (annotatorsCtx) {
+        new Chart(annotatorsCtx, {
+            type: 'bar',
+            data: {
+                labels: {{ chart_annotators.labels | tojson }},
+                datasets: [{
+                    data: {{ chart_annotators.data | tojson }},
+                    backgroundColor: '#374151',
+                    borderRadius: 4,
+                    maxBarThickness: 50
+                }]
+            },
+            options: chartConfig
+        });
+    }
+
+    // Projects Chart
+    const projectsCtx = document.getElementById('chartProjects');
+    if (projectsCtx) {
+        new Chart(projectsCtx, {
+            type: 'bar',
+            data: {
+                labels: {{ chart_projects.labels | tojson }},
+                datasets: [{
+                    data: {{ chart_projects.data | tojson }},
+                    backgroundColor: '#6b7280',
+                    borderRadius: 4,
+                    maxBarThickness: 50
+                }]
+            },
+            options: chartConfig
+        });
+    }
+
+    // Multi-select handling for filters
+    const projectsSelect = document.getElementById('projects');
+    const annotatorsSelect = document.getElementById('annotators');
+
+    function handleMultiSelect(select) {
+        if (!select) return;
+        
+        select.addEventListener('change', function() {
+            // Convert to comma-separated for URL
+            const selected = Array.from(this.selectedOptions).map(o => o.value);
+            this.setAttribute('data-value', selected.join(','));
+        });
+    }
+
+    handleMultiSelect(projectsSelect);
+    handleMultiSelect(annotatorsSelect);
+
+    // Form submission handler
+    document.getElementById('filter-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const date = document.getElementById('date').value;
+        const projects = Array.from(projectsSelect.selectedOptions).map(o => o.value);
+        const annotators = Array.from(annotatorsSelect.selectedOptions).map(o => o.value);
+        
+        let url = `/dashboard?date=${date}`;
+        if (projects.length > 0 && projects.length < projectsSelect.options.length) {
+            url += `&projects=${projects.join(',')}`;
+        }
+        if (annotators.length > 0 && annotators.length < annotatorsSelect.options.length) {
+            url += `&annotators=${annotators.join(',')}`;
+        }
+        
+        window.location.href = url;
+    });
+
+    // ============================================
+    // SLACK INTEGRATION
+    // ============================================
+    
+    const previewBtn = document.getElementById('preview-slack-btn');
+    const sendBtn = document.getElementById('send-slack-btn');
+    const previewContainer = document.getElementById('slack-preview-container');
+    const previewContent = document.getElementById('slack-preview');
+    const statusContainer = document.getElementById('slack-status');
+    const successBox = document.getElementById('slack-success');
+    const errorBox = document.getElementById('slack-error');
+    const successText = document.getElementById('slack-success-text');
+    const errorText = document.getElementById('slack-error-text');
+
+    function getSlackFormData() {
+        const formData = new FormData();
+        formData.append('date', '{{ selected_date }}');
+        
+        const projects = {{ selected_projects | tojson }};
+        const annotators = {{ selected_annotators | tojson }};
+        
+        if (projects.length > 0) {
+            formData.append('projects', projects.join(','));
+        }
+        if (annotators.length > 0) {
+            formData.append('annotators', annotators.join(','));
+        }
+        
+        const taskAllocation = document.getElementById('task_allocation').value;
+        formData.append('task_allocation', taskAllocation);
+        
+        const webhookUrl = document.getElementById('webhook_url').value;
+        if (webhookUrl) {
+            formData.append('webhook_url', webhookUrl);
+        }
+        
+        return formData;
+    }
+
+    function showSuccess(message) {
+        statusContainer.classList.remove('hidden');
+        successBox.classList.remove('hidden');
+        errorBox.classList.add('hidden');
+        successText.textContent = message;
+    }
+
+    function showError(message) {
+        statusContainer.classList.remove('hidden');
+        successBox.classList.add('hidden');
+        errorBox.classList.remove('hidden');
+        errorText.textContent = message;
+    }
+
+    function hideStatus() {
+        statusContainer.classList.add('hidden');
+        successBox.classList.add('hidden');
+        errorBox.classList.add('hidden');
+    }
+
+    // Preview button handler
+    previewBtn.addEventListener('click', async function() {
+        previewBtn.disabled = true;
+        previewBtn.innerHTML = '<svg class="w-5 h-5 mr-2 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Loading...';
+        hideStatus();
+
+        try {
+            const response = await fetch('/api/slack/preview', {
+                method: 'POST',
+                body: getSlackFormData()
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                previewContainer.classList.remove('hidden');
+                previewContent.textContent = data.preview;
+            } else {
+                showError(data.error || 'Failed to generate preview');
+            }
+        } catch (error) {
+            showError('Network error: ' + error.message);
+        } finally {
+            previewBtn.disabled = false;
+            previewBtn.innerHTML = '<svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>Preview Message';
+        }
+    });
+
+    // Send button handler
+    sendBtn.addEventListener('click', async function() {
+        if (!confirm('Send this report to Slack?')) return;
+        
+        sendBtn.disabled = true;
+        sendBtn.innerHTML = '<svg class="w-5 h-5 mr-2 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Sending...';
+        hideStatus();
+
+        try {
+            const response = await fetch('/api/slack/send', {
+                method: 'POST',
+                body: getSlackFormData()
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showSuccess(data.message || 'Report sent to Slack successfully!');
+            } else {
+                showError(data.error || 'Failed to send to Slack');
+            }
+        } catch (error) {
+            showError('Network error: ' + error.message);
+        } finally {
+            sendBtn.disabled = false;
+            sendBtn.innerHTML = '<svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>Send to Slack';
+        }
+    });
+});
+</script>
+{% endblock %}
+

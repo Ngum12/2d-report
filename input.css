@@ -1,0 +1,131 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-size: 16px;
+  }
+  
+  body {
+    @apply antialiased;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center px-6 py-3 bg-brand-800 text-white font-medium rounded-md 
+           hover:bg-brand-900 focus:outline-none focus:ring-2 focus:ring-brand-800 focus:ring-offset-2 
+           transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  
+  .btn-secondary {
+    @apply inline-flex items-center justify-center px-6 py-3 bg-white text-brand-800 font-medium rounded-md 
+           border border-brand-300 hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-brand-800 
+           focus:ring-offset-2 transition-colors duration-150;
+  }
+  
+  .form-input {
+    @apply w-full h-11 px-3.5 py-2.5 bg-white border border-brand-200 rounded-md text-brand-900 
+           placeholder:text-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-800 
+           focus:border-transparent transition-shadow duration-150;
+  }
+  
+  .form-select {
+    @apply w-full h-11 px-3.5 py-2.5 bg-white border border-brand-200 rounded-md text-brand-900 
+           focus:outline-none focus:ring-2 focus:ring-brand-800 focus:border-transparent 
+           transition-shadow duration-150 appearance-none cursor-pointer;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 0.5rem center;
+    background-repeat: no-repeat;
+    background-size: 1.5em 1.5em;
+    padding-right: 2.5rem;
+  }
+  
+  .form-textarea {
+    @apply w-full px-3.5 py-2.5 bg-white border border-brand-200 rounded-md text-brand-900 
+           placeholder:text-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-800 
+           focus:border-transparent transition-shadow duration-150 resize-none;
+  }
+  
+  .form-label {
+    @apply block text-sm font-medium text-brand-900 mb-1.5;
+  }
+  
+  .form-error {
+    @apply text-sm text-red-700 mt-1;
+  }
+  
+  .card {
+    @apply bg-white border border-brand-200 rounded-lg p-6;
+  }
+  
+  .metric-card {
+    @apply bg-white border border-brand-200 rounded-lg p-6;
+  }
+  
+  .metric-label {
+    @apply text-sm font-medium text-brand-500 mb-1;
+  }
+  
+  .metric-value {
+    @apply text-metric text-brand-900;
+  }
+  
+  .table-container {
+    @apply overflow-x-auto border border-brand-200 rounded-lg;
+  }
+  
+  .data-table {
+    @apply w-full text-left;
+  }
+  
+  .data-table thead {
+    @apply bg-brand-50 border-b border-brand-200;
+  }
+  
+  .data-table th {
+    @apply px-4 py-3 text-sm font-semibold text-brand-900 whitespace-nowrap;
+  }
+  
+  .data-table td {
+    @apply px-4 py-3 text-sm text-brand-700;
+  }
+  
+  .data-table tbody tr {
+    @apply border-b border-brand-100 last:border-b-0;
+  }
+  
+  .data-table tbody tr:nth-child(even) {
+    @apply bg-brand-50/50;
+  }
+  
+  .data-table .text-right {
+    @apply text-right tabular-nums;
+  }
+  
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+  
+  .badge-completed {
+    @apply bg-green-100 text-green-800;
+  }
+  
+  .badge-partial {
+    @apply bg-yellow-100 text-yellow-800;
+  }
+  
+  .badge-blocked {
+    @apply bg-red-100 text-red-800;
+  }
+  
+  .section-title {
+    @apply text-section-title text-brand-900 mb-4;
+  }
+  
+  .section-subtitle {
+    @apply text-sm text-brand-500 mb-4;
+  }
+}
+

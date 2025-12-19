@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: annotation-daily-hq
+    runtime: python
+    buildCommand: pip install -r requirements.txt && npm install && npm run tailwind:build
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        value: postgresql://neondb_owner:npg_HBhxbTA8l1uX@ep-round-surf-aeguvugl-pooler.c-2.us-east-2.aws.neon.tech/neondb?sslmode=require
+      - key: SLACK_WEBHOOK_URL
+        sync: false
+      - key: PYTHON_VERSION
+        value: "3.12"
+
